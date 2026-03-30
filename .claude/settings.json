@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/david/.claude/projects/c--Development-Underwriter-Workbench/memory//**)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \".specify/scripts/powershell/create-new-feature.ps1\" \"as per underwriter-workbench.spec.md\" -Json -ShortName \"underwriter-workbench\")",
+      "Bash(pwsh --version)",
+      "Bash(where pwsh.exe)",
+      "Bash(powershell.exe -Command '$PSVersionTable.PSVersion')",
+      "Read(//c//**)",
+      "Read(//c/Users/david/AppData/Local/Microsoft/WindowsApps/**)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Users/david/AppData/Local/Programs/**)",
+      "Read(//c/Users/david/**)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \".specify/scripts/powershell/setup-plan.ps1\" -Json)",
+      "Bash(powershell -File \".specify/scripts/powershell/check-prerequisites.ps1\" -Json)",
+      "Bash(powershell -Command \"$PSVersionTable.PSVersion\")",
+      "Bash(powershell -Command \"Write-Output $PSVersionTable.PSVersion.Major\")",
+      "Bash(dotnet new:*)",
+      "Bash(dotnet sln:*)",
+      "Bash(powershell.exe -Version 5 -Command \"& ''''.specify/scripts/powershell/check-prerequisites.ps1'''' -Json -RequireTasks -IncludeTasks\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k: d[k] for k in [''''dependencies'''',''''devDependencies''''] if k in d}, indent=2\\)\\)\")",
+      "Bash(dotnet restore:*)",
+      "Bash(npm run:*)",
+      "Bash(sed -i 's/- \\\\[ \\\\] T04/- [x] T04/g' \"specs/001-underwriter-workbench/tasks.md\")",
+      "Bash(sed -i 's/- \\\\[ \\\\] T05/- [x] T05/g' \"specs/001-underwriter-workbench/tasks.md\")",
+      "Bash(sed -i 's/- \\\\[ \\\\] T06/- [x] T06/g' \"specs/001-underwriter-workbench/tasks.md\")",
+      "Read(//c/Development/**)",
+      "Bash(az account:*)",
+      "Bash(az group:*)",
+      "Bash(az cosmosdb:*)",
+      "Bash(MSYS_NO_PATHCONV=1 az cosmosdb sql container create --resource-group rg-underwriter-workbench --account-name cosmos-uw-workbench-dev --database-name underwriter-workbench --name submissions --partition-key-path /submissionId --throughput 400)",
+      "Bash(MSYS_NO_PATHCONV=1 az cosmosdb sql container create --resource-group rg-underwriter-workbench --account-name cosmos-uw-workbench-dev --database-name underwriter-workbench --name devtools --partition-key-path /ownerId --throughput 400)",
+      "Bash(MSYS_NO_PATHCONV=1 az cosmosdb sql container create --resource-group rg-underwriter-workbench --account-name cosmos-uw-workbench-dev --database-name underwriter-workbench --name portfolio --partition-key-path /id --throughput 400)",
+      "Bash(MSYS_NO_PATHCONV=1 az cosmosdb keys list --resource-group rg-underwriter-workbench --account-name cosmos-uw-workbench-dev --type connection-strings --query \"connectionStrings[0].connectionString\" --output tsv)",
+      "Bash(az storage:*)",
+      "Bash(node \"c:/Development/Underwriter Workbench/example_docs/gen_pdf.js\")"
+    ]
+  }
+}
