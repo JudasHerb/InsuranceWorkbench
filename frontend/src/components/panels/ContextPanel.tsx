@@ -51,7 +51,7 @@ export default function ContextPanel() {
           {row('Insured', riskDetails.insuredName)}
           {row('Territory', riskDetails.territory)}
           {row('LOB', riskDetails.lineOfBusiness)}
-          {row('Coverage', riskDetails.coverageType)}
+          {row('Coverage', riskDetails.coverageTypes?.join(', '))}
           {row('Inception', riskDetails.inceptionDate)}
           {row('Expiry', riskDetails.expiryDate)}
         </div>

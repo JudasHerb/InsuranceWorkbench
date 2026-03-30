@@ -1,6 +1,41 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace UnderwriterWorkbench.Core.Models;
+
+/// <summary>
+/// Coerces legacy single-string "coverageType" values stored in Cosmos to List&lt;string&gt;.
+/// Reads both a JSON string ("Property") and a JSON array (["Property","..."]).
+/// Always writes a JSON array.
+/// </summary>
+public class CoverageTypesConverter : JsonConverter<List<string>>
+{
+    public override List<string> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.String)
+            return [reader.GetString()!];
+
+        if (reader.TokenType == JsonTokenType.StartArray)
+        {
+            var list = new List<string>();
+            while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+                if (reader.TokenType == JsonTokenType.String)
+                    list.Add(reader.GetString()!);
+            return list;
+        }
+
+        reader.Skip();
+        return [];
+    }
+
+    public override void Write(Utf8JsonWriter writer, List<string> value, JsonSerializerOptions options)
+    {
+        writer.WriteStartArray();
+        foreach (var item in value)
+            writer.WriteStringValue(item);
+        writer.WriteEndArray();
+    }
+}
 
 public class Submission
 {
@@ -53,7 +88,7 @@ public class RiskDetails
     public string InsuredName { get; set; } = string.Empty;
 
     [JsonPropertyName("cedant")]
-    public string Cedant { get; set; } = string.Empty;
+    public string? Cedant { get; set; }
 
     [JsonPropertyName("broker")]
     public string Broker { get; set; } = string.Empty;
@@ -64,8 +99,9 @@ public class RiskDetails
     [JsonPropertyName("territory")]
     public string Territory { get; set; } = string.Empty;
 
-    [JsonPropertyName("coverageType")]
-    public string CoverageType { get; set; } = string.Empty;
+    [JsonConverter(typeof(CoverageTypesConverter))]
+    [JsonPropertyName("coverageTypes")]
+    public List<string> CoverageTypes { get; set; } = [];
 
     [JsonPropertyName("inceptionDate")]
     public string InceptionDate { get; set; } = string.Empty;

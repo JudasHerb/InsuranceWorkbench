@@ -30,6 +30,20 @@ public class SubmissionsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateSubmissionRequest req)
     {
+        if (!ReferenceData.EuropeanTerritories.Contains(req.RiskDetails.Territory))
+            return BadRequest(new { error = "INVALID_TERRITORY" });
+
+        if (!ReferenceData.LinesOfBusiness.Contains(req.RiskDetails.LineOfBusiness))
+            return BadRequest(new { error = "INVALID_LINE_OF_BUSINESS" });
+
+        if (req.RiskDetails.CoverageTypes.Count > 0 &&
+            ReferenceData.CoverageByLob.TryGetValue(req.RiskDetails.LineOfBusiness, out var validCoverages))
+        {
+            var invalid = req.RiskDetails.CoverageTypes.Where(c => !validCoverages.Contains(c)).ToList();
+            if (invalid.Count > 0)
+                return BadRequest(new { error = "INVALID_COVERAGE_TYPES", invalid });
+        }
+
         var userId = User.Identity?.Name ?? "anonymous";
         var submission = new Submission
         {
@@ -50,7 +64,13 @@ public class SubmissionsController : ControllerBase
             Actor = new AuditActor { Type = "user", Id = userId, DisplayName = "Underwriter" }
         });
 
-        _ = Task.Run(() => _namesClearance.RunAsync(submission.SubmissionId, userId));
+        // Initial clearance: insured + broker only (cedant not yet assigned)
+        var initialEntities = new List<ClearanceEntity>
+        {
+            new(submission.RiskDetails.InsuredName, "insured"),
+            new(submission.RiskDetails.Broker, "broker"),
+        };
+        _ = Task.Run(() => _namesClearance.RunAsync(submission.SubmissionId, userId, initialEntities));
 
         return CreatedAtAction(nameof(GetById), new { submissionId = submission.SubmissionId }, new
         {
@@ -87,6 +107,9 @@ public class SubmissionsController : ControllerBase
         var submission = await _repo.GetByIdAsync(submissionId);
         if (submission is null) return NotFound();
 
+        var userId = User.Identity?.Name ?? "anonymous";
+        var previousCedant = submission.RiskDetails.Cedant;
+
         if (req.RiskDetails is not null)
         {
             if (req.RiskDetails.InsuredName is not null) submission.RiskDetails.InsuredName = req.RiskDetails.InsuredName;
@@ -94,7 +117,7 @@ public class SubmissionsController : ControllerBase
             if (req.RiskDetails.Broker is not null) submission.RiskDetails.Broker = req.RiskDetails.Broker;
             if (req.RiskDetails.LineOfBusiness is not null) submission.RiskDetails.LineOfBusiness = req.RiskDetails.LineOfBusiness;
             if (req.RiskDetails.Territory is not null) submission.RiskDetails.Territory = req.RiskDetails.Territory;
-            if (req.RiskDetails.CoverageType is not null) submission.RiskDetails.CoverageType = req.RiskDetails.CoverageType;
+            if (req.RiskDetails.CoverageTypes is not null) submission.RiskDetails.CoverageTypes = req.RiskDetails.CoverageTypes;
             if (req.RiskDetails.InceptionDate is not null) submission.RiskDetails.InceptionDate = req.RiskDetails.InceptionDate;
             if (req.RiskDetails.ExpiryDate is not null) submission.RiskDetails.ExpiryDate = req.RiskDetails.ExpiryDate;
         }
@@ -104,6 +127,20 @@ public class SubmissionsController : ControllerBase
 
         submission.UpdatedAt = DateTime.UtcNow;
         submission = await _repo.UpdateAsync(submission);
+
+        // Re-run names clearance when cedant is first assigned or changed
+        var newCedant = submission.RiskDetails.Cedant;
+        if (!string.IsNullOrWhiteSpace(newCedant) && newCedant != previousCedant)
+        {
+            var entities = new List<ClearanceEntity>
+            {
+                new(submission.RiskDetails.InsuredName, "insured"),
+                new(newCedant, "cedant"),
+                new(submission.RiskDetails.Broker, "broker"),
+            };
+            _ = Task.Run(() => _namesClearance.RunAsync(submissionId, userId, entities));
+        }
+
         return Ok(submission);
     }
 
@@ -166,7 +203,7 @@ public class PatchRiskDetails
     public string? Broker { get; set; }
     public string? LineOfBusiness { get; set; }
     public string? Territory { get; set; }
-    public string? CoverageType { get; set; }
+    public List<string>? CoverageTypes { get; set; }
     public string? InceptionDate { get; set; }
     public string? ExpiryDate { get; set; }
 }

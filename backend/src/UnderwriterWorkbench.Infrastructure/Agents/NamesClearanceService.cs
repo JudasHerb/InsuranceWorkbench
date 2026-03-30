@@ -4,6 +4,8 @@ using UnderwriterWorkbench.Core.Models;
 
 namespace UnderwriterWorkbench.Infrastructure.Agents;
 
+public record ClearanceEntity(string Name, string Type);
+
 public class NamesClearanceService
 {
     private readonly ISubmissionRepository _repo;
@@ -23,7 +25,7 @@ public class NamesClearanceService
         _logger = logger;
     }
 
-    public async Task RunAsync(string submissionId, string userId)
+    public async Task RunAsync(string submissionId, string userId, IReadOnlyList<ClearanceEntity> entities)
     {
         var submission = await _repo.GetByIdAsync(submissionId);
         if (submission is null) return;
@@ -36,21 +38,15 @@ public class NamesClearanceService
             Status = "running",
             StartedAt = DateTime.UtcNow,
             CreatedBy = userId,
-            SubTasks =
-            [
-                new() { Name = "insured-check", Status = "queued" },
-                new() { Name = "cedant-check", Status = "queued" },
-                new() { Name = "broker-check", Status = "queued" }
-            ],
+            SubTasks = entities
+                .Select(e => new AgentSubTask { Name = $"{e.Type}-check", Status = "queued" })
+                .ToList(),
             Input = new Dictionary<string, object?>
             {
                 ["submissionId"] = submissionId,
-                ["entities"] = new[]
-                {
-                    new { entityName = submission.RiskDetails.InsuredName, entityType = "insured", jurisdiction = submission.RiskDetails.Territory },
-                    new { entityName = submission.RiskDetails.Cedant, entityType = "cedant", jurisdiction = submission.RiskDetails.Territory },
-                    new { entityName = submission.RiskDetails.Broker, entityType = "broker", jurisdiction = submission.RiskDetails.Territory }
-                }
+                ["entities"] = entities
+                    .Select(e => new { entityName = e.Name, entityType = e.Type, jurisdiction = submission.RiskDetails.Territory })
+                    .ToArray()
             }
         };
 
@@ -61,21 +57,15 @@ public class NamesClearanceService
             taskId = task.Id, submissionId, agentType = "names-clearance", status = "running"
         });
 
-        var entityChecks = new[]
-        {
-            (submission.RiskDetails.InsuredName, "insured", 0),
-            (submission.RiskDetails.Cedant, "cedant", 1),
-            (submission.RiskDetails.Broker, "broker", 2)
-        };
-
         var results = new List<SanctionsResult>();
-        foreach (var (name, entityType, idx) in entityChecks)
+        for (var idx = 0; idx < entities.Count; idx++)
         {
+            var entity = entities[idx];
             task.SubTasks[idx].Status = "running";
             task.SubTasks[idx].StartedAt = DateTime.UtcNow;
             await _repo.UpdateAgentTaskAsync(task);
 
-            var result = await _sanctions.CheckEntityAsync(name, entityType, submission.RiskDetails.Territory);
+            var result = await _sanctions.CheckEntityAsync(entity.Name, entity.Type, submission.RiskDetails.Territory);
             results.Add(result);
 
             task.SubTasks[idx].Status = "complete";

@@ -27,6 +27,9 @@ export default function SubmissionView() {
       if (payload.submissionId !== id) return
       if (payload.outputChunk) appendOutputChunk(payload.taskId, payload.outputChunk)
       workbenchApi.getAgentTask(id, payload.taskId).then(upsertAgentTask).catch(() => {})
+      if (payload.isFinalChunk) {
+        workbenchApi.getSubmission(id).then(setCurrentSubmission).catch(() => {})
+      }
     }
     workbenchHub.onAgentTaskUpdate(taskHandler)
 

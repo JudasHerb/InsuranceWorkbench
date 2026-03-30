@@ -1,26 +1,40 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { workbenchApi, type CreateSubmissionRequest } from '../../services/api/workbenchApi'
 import { usePortfolioStore } from '../../store/portfolioStore'
 import { workbenchHub } from '../../services/signalr/workbenchHub'
 import type { Submission } from '../../types'
+import {
+  EUROPEAN_TERRITORIES,
+  LINES_OF_BUSINESS,
+  COVERAGE_BY_LOB,
+  type LineOfBusiness,
+} from '../shared/referenceData'
 
 const fmt = (n: number, currency = 'USD') =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 }).format(n)
+
+const EMPTY_FORM: CreateSubmissionRequest = {
+  insuredName: '',
+  broker: '',
+  lineOfBusiness: '',
+  territory: '',
+  coverageTypes: [],
+  inceptionDate: '',
+  expiryDate: '',
+}
 
 export default function PortfolioView() {
   const navigate = useNavigate()
   const { snapshot, filters, setSnapshot, applyPortfolioUpdated, setFilter, setLoading } = usePortfolioStore()
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [showNewModal, setShowNewModal] = useState(false)
-  const [form, setForm] = useState<CreateSubmissionRequest>({
-    insuredName: '', cedant: '', broker: '', lineOfBusiness: '',
-    territory: '', coverageType: '', inceptionDate: '', expiryDate: ''
-  })
+  const [form, setForm] = useState<CreateSubmissionRequest>(EMPTY_FORM)
   const [submitting, setSubmitting] = useState(false)
+  const expiryManuallySet = useRef(false)
 
   useEffect(() => {
-      workbenchHub.joinPortfolio()
+    workbenchHub.joinPortfolio()
 
     const handler = (payload: Parameters<typeof applyPortfolioUpdated>[0]) => applyPortfolioUpdated(payload)
     workbenchHub.onPortfolioUpdated(handler)
@@ -29,10 +43,12 @@ export default function PortfolioView() {
       setLoading(true)
       try {
         const [snap, list] = await Promise.all([
-          workbenchApi.getPortfolio(filters.territory || filters.lineOfBusiness || filters.status
-            ? { territory: filters.territory || undefined, lineOfBusiness: filters.lineOfBusiness || undefined, status: filters.status || undefined }
-            : undefined),
-          workbenchApi.listSubmissions({ pageSize: 100 })
+          workbenchApi.getPortfolio(
+            filters.territory || filters.lineOfBusiness || filters.status
+              ? { territory: filters.territory || undefined, lineOfBusiness: filters.lineOfBusiness || undefined, status: filters.status || undefined }
+              : undefined,
+          ),
+          workbenchApi.listSubmissions({ pageSize: 100 }),
         ])
         setSnapshot(snap)
         setSubmissions(list.items)
@@ -49,6 +65,40 @@ export default function PortfolioView() {
       workbenchHub.leavePortfolio()
     }
   }, [filters.territory, filters.lineOfBusiness, filters.status])
+
+  const openModal = () => {
+    setForm(EMPTY_FORM)
+    expiryManuallySet.current = false
+    setShowNewModal(true)
+  }
+
+  const handleInceptionChange = (value: string) => {
+    setForm((f) => {
+      const next: CreateSubmissionRequest = { ...f, inceptionDate: value }
+      if (value && !expiryManuallySet.current) {
+        const d = new Date(value)
+        d.setFullYear(d.getFullYear() + 1)
+        next.expiryDate = d.toISOString().slice(0, 10)
+      }
+      return next
+    })
+  }
+
+  const handleLobChange = (lob: string) => {
+    setForm((f) => ({ ...f, lineOfBusiness: lob, coverageTypes: [] }))
+  }
+
+  const toggleCoverage = (coverage: string) => {
+    setForm((f) => {
+      const already = f.coverageTypes.includes(coverage)
+      return {
+        ...f,
+        coverageTypes: already
+          ? f.coverageTypes.filter((c) => c !== coverage)
+          : [...f.coverageTypes, coverage],
+      }
+    })
+  }
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -74,6 +124,10 @@ export default function PortfolioView() {
     return <span className={`px-2 py-0.5 rounded text-xs font-medium ${colours[status] ?? 'bg-gray-100 text-gray-700'}`}>{status}</span>
   }
 
+  const availableCoverages = form.lineOfBusiness
+    ? (COVERAGE_BY_LOB[form.lineOfBusiness as LineOfBusiness] ?? [])
+    : []
+
   return (
     <div className="p-6 space-y-6">
       {/* KPI strip */}
@@ -95,18 +149,29 @@ export default function PortfolioView() {
 
       {/* Filters + actions row */}
       <div className="flex flex-wrap gap-3 items-center">
-        <input
-          type="text" placeholder="Territory" value={filters.territory}
+        <select
+          value={filters.territory}
           onChange={(e) => setFilter('territory', e.target.value)}
           className="border border-gray-300 rounded px-3 py-1.5 text-sm"
-        />
-        <input
-          type="text" placeholder="Line of Business" value={filters.lineOfBusiness}
+        >
+          <option value="">All territories</option>
+          {EUROPEAN_TERRITORIES.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+        <select
+          value={filters.lineOfBusiness}
           onChange={(e) => setFilter('lineOfBusiness', e.target.value)}
           className="border border-gray-300 rounded px-3 py-1.5 text-sm"
-        />
+        >
+          <option value="">All lines</option>
+          {LINES_OF_BUSINESS.map((lob) => (
+            <option key={lob} value={lob}>{lob}</option>
+          ))}
+        </select>
         <select
-          value={filters.status} onChange={(e) => setFilter('status', e.target.value)}
+          value={filters.status}
+          onChange={(e) => setFilter('status', e.target.value)}
           className="border border-gray-300 rounded px-3 py-1.5 text-sm"
         >
           <option value="">All statuses</option>
@@ -116,7 +181,7 @@ export default function PortfolioView() {
           <option value="declined">Declined</option>
         </select>
         <button
-          onClick={() => setShowNewModal(true)}
+          onClick={openModal}
           className="ml-auto bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-1.5 rounded"
         >
           + New Submission
@@ -190,7 +255,7 @@ export default function PortfolioView() {
                 onClick={() => navigate(`/submissions/${s.submissionId}`)}
               >
                 <td className="px-4 py-3 font-medium text-indigo-600 hover:underline">{s.riskDetails.insuredName}</td>
-                <td className="px-4 py-3 text-gray-700">{s.riskDetails.cedant}</td>
+                <td className="px-4 py-3 text-gray-700">{s.riskDetails.cedant ?? '—'}</td>
                 <td className="px-4 py-3 text-gray-700">{s.riskDetails.lineOfBusiness}</td>
                 <td className="px-4 py-3 text-gray-700">{s.riskDetails.territory}</td>
                 <td className="px-4 py-3">{statusBadge(s.status)}</td>
@@ -204,48 +269,128 @@ export default function PortfolioView() {
       {/* New submission modal */}
       {showNewModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-semibold mb-4">New Submission</h2>
             <form onSubmit={handleCreate} className="space-y-3">
-              {([
-                ['insuredName', 'Insured Name'],
-                ['cedant', 'Cedant'],
-                ['broker', 'Broker'],
-                ['lineOfBusiness', 'Line of Business'],
-                ['territory', 'Territory'],
-                ['coverageType', 'Coverage Type'],
-              ] as [keyof CreateSubmissionRequest, string][]).map(([key, label]) => (
-                <div key={key}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-                  <input
-                    required
-                    value={form[key] as string}
-                    onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                  />
+              {/* Insured Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Insured Name</label>
+                <input
+                  required
+                  value={form.insuredName}
+                  onChange={(e) => setForm((f) => ({ ...f, insuredName: e.target.value }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                />
+              </div>
+
+              {/* Broker */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Broker</label>
+                <input
+                  required
+                  value={form.broker}
+                  onChange={(e) => setForm((f) => ({ ...f, broker: e.target.value }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                />
+              </div>
+
+              {/* Territory */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Territory</label>
+                <select
+                  required
+                  value={form.territory}
+                  onChange={(e) => setForm((f) => ({ ...f, territory: e.target.value }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                >
+                  <option value="">Select territory…</option>
+                  {EUROPEAN_TERRITORIES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Line of Business */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Line of Business</label>
+                <select
+                  required
+                  value={form.lineOfBusiness}
+                  onChange={(e) => handleLobChange(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                >
+                  <option value="">Select line of business…</option>
+                  {LINES_OF_BUSINESS.map((lob) => (
+                    <option key={lob} value={lob}>{lob}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Coverage Types */}
+              {availableCoverages.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Coverage Types <span className="text-gray-400 font-normal">(select all that apply)</span>
+                  </label>
+                  <div className="border border-gray-300 rounded p-2 space-y-1 max-h-40 overflow-y-auto">
+                    {availableCoverages.map((cov) => (
+                      <label key={cov} className="flex items-center gap-2 cursor-pointer text-sm hover:bg-gray-50 px-1 py-0.5 rounded">
+                        <input
+                          type="checkbox"
+                          checked={form.coverageTypes.includes(cov)}
+                          onChange={() => toggleCoverage(cov)}
+                          className="rounded"
+                        />
+                        {cov}
+                      </label>
+                    ))}
+                  </div>
+                  {form.coverageTypes.length === 0 && (
+                    <p className="text-xs text-red-500 mt-1">Select at least one coverage type</p>
+                  )}
                 </div>
-              ))}
+              )}
+
+              {/* Dates */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Inception Date</label>
                   <input
-                    required type="date" value={form.inceptionDate}
-                    onChange={(e) => setForm((f) => ({ ...f, inceptionDate: e.target.value }))}
+                    required
+                    type="date"
+                    value={form.inceptionDate}
+                    onChange={(e) => handleInceptionChange(e.target.value)}
                     className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
                   <input
-                    required type="date" value={form.expiryDate}
-                    onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
+                    required
+                    type="date"
+                    value={form.expiryDate}
+                    onChange={(e) => {
+                      expiryManuallySet.current = true
+                      setForm((f) => ({ ...f, expiryDate: e.target.value }))
+                    }}
                     className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                   />
                 </div>
               </div>
+
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowNewModal(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded">Cancel</button>
-                <button type="submit" disabled={submitting} className="px-4 py-2 text-sm bg-indigo-600 text-white rounded disabled:opacity-50">
+                <button
+                  type="button"
+                  onClick={() => setShowNewModal(false)}
+                  className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting || form.coverageTypes.length === 0}
+                  className="px-4 py-2 text-sm bg-indigo-600 text-white rounded disabled:opacity-50"
+                >
                   {submitting ? 'Creating…' : 'Create'}
                 </button>
               </div>

@@ -16,11 +16,10 @@ api.interceptors.request.use((config) => {
 
 export interface CreateSubmissionRequest {
   insuredName: string
-  cedant: string
   broker: string
   lineOfBusiness: string
   territory: string
-  coverageType: string
+  coverageTypes: string[]
   inceptionDate: string
   expiryDate: string
 }

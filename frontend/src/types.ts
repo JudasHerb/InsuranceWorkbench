@@ -2,11 +2,11 @@
 
 export interface RiskDetails {
   insuredName: string
-  cedant: string
+  cedant: string | null
   broker: string
   lineOfBusiness: string
   territory: string
-  coverageType: string
+  coverageTypes: string[]
   inceptionDate: string
   expiryDate: string
 }
