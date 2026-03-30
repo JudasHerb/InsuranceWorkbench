@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/UnderwriterWorkbench.Api/UnderwriterWorkbench.Api.csproj" />
+    <Project Path="src/UnderwriterWorkbench.Core/UnderwriterWorkbench.Core.csproj" />
+    <Project Path="src/UnderwriterWorkbench.Infrastructure/UnderwriterWorkbench.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/UnderwriterWorkbench.Contract/UnderwriterWorkbench.Contract.csproj" />
+    <Project Path="tests/UnderwriterWorkbench.Integration/UnderwriterWorkbench.Integration.csproj" />
+    <Project Path="tests/UnderwriterWorkbench.Unit/UnderwriterWorkbench.Unit.csproj" />
+  </Folder>
+</Solution>

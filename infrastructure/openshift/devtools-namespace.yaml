@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uw-devtools
+  labels:
+    app: underwriter-workbench
+    component: devtools
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+  namespace: uw-devtools
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: devtool-runner
+  namespace: uw-devtools
