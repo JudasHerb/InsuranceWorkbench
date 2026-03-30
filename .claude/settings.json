@@ -33,7 +33,10 @@
       "Bash(MSYS_NO_PATHCONV=1 az cosmosdb sql container create --resource-group rg-underwriter-workbench --account-name cosmos-uw-workbench-dev --database-name underwriter-workbench --name portfolio --partition-key-path /id --throughput 400)",
       "Bash(MSYS_NO_PATHCONV=1 az cosmosdb keys list --resource-group rg-underwriter-workbench --account-name cosmos-uw-workbench-dev --type connection-strings --query \"connectionStrings[0].connectionString\" --output tsv)",
       "Bash(az storage:*)",
-      "Bash(node \"c:/Development/Underwriter Workbench/example_docs/gen_pdf.js\")"
+      "Bash(node \"c:/Development/Underwriter Workbench/example_docs/gen_pdf.js\")",
+      "Bash(powershell -Command \".specify/scripts/powershell/create-new-feature.ps1 ''Submission form enhancements: territory/LOB dropdowns, coverage multi-select, cedant deferred, expiry date auto-fill, names clearance re-run on cedant'' -Json -ShortName ''submission-form-enhancements''\")",
+      "Bash(pwsh -Version)",
+      "Bash(powershell -Command \".specify/scripts/powershell/setup-plan.ps1 -Json\")"
     ]
   }
 }
