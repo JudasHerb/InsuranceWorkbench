@@ -235,10 +235,10 @@ jobs:
 
       - name: Build frontend (Staging)
         working-directory: frontend
+        env:
+          VITE_API_BASE_URL: https://ca-uw-workbench-staging.gentledesert-9cf0d972.uksouth.azurecontainerapps.io
         run: |
           npm ci
-          # Inject the staging backend URL into the SWA reverse-proxy config
-          sed -i "s|__BACKEND_URL__|https://ca-uw-workbench-staging.gentledesert-9cf0d972.uksouth.azurecontainerapps.io|g" public/staticwebapp.config.json
           npm run build
 
       - name: Deploy frontend to Azure Static Web Apps (Staging)
@@ -326,10 +326,10 @@ jobs:
 
       - name: Build frontend (Production)
         working-directory: frontend
+        env:
+          VITE_API_BASE_URL: https://ca-uw-workbench-prod.gentledesert-9cf0d972.uksouth.azurecontainerapps.io
         run: |
           npm ci
-          # Inject the prod backend URL into the SWA reverse-proxy config
-          sed -i "s|__BACKEND_URL__|https://ca-uw-workbench-prod.gentledesert-9cf0d972.uksouth.azurecontainerapps.io|g" public/staticwebapp.config.json
           npm run build
 
       - name: Deploy frontend to Azure Static Web Apps (Production)

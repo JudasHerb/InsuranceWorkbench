@@ -63,11 +63,17 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "Underwriter Workbench API", Version = "v1" });
 });
 
-// CORS for frontend dev
+// CORS — localhost dev + deployed SWA origins
+var allowedOrigins = new[]
+{
+    "http://localhost:5173",
+    "https://white-moss-0e3cf9503.4.azurestaticapps.net",  // staging
+    "https://green-moss-043abc203.2.azurestaticapps.net",  // production
+};
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials());

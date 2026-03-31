@@ -16,7 +16,7 @@ class WorkbenchHubClient {
 
   constructor() {
     this.connection = new signalR.HubConnectionBuilder()
-      .withUrl('/hubs/workbench', {
+      .withUrl(`${import.meta.env.VITE_API_BASE_URL ?? ''}/hubs/workbench`, {
         // Bearer token injected here in T059 via MSAL
       })
       .withAutomaticReconnect()
