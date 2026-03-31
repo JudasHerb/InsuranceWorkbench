@@ -52,6 +52,13 @@ npm run dev
 npm run test:e2e
 ```
 
+## Running Services
+
+**Never start the backend API yourself.** If a task requires the API to be running (e.g. running e2e tests), ask the user to start it first:
+> "Please start the backend API (`dotnet run --project src/UnderwriterWorkbench.Api` from the `backend/` directory) then let me know when it's ready."
+
+Do not use `dotnet run`, `taskkill`, or any other process management commands to start/stop the API.
+
 ## Code Style
 
 - C#: Follow Microsoft .NET conventions. Async/await throughout. No sync-over-async.
@@ -71,6 +78,14 @@ Territory list, LOB list, and coverage-per-LOB map live in `frontend/src/compone
 - `RiskDetails.coverageType: string` → `coverageTypes: string[]` (multi-select). Old single-string values coerced to one-item array by `CoverageTypesConverter` on Cosmos read.
 - `RiskDetails.cedant` is nullable; absent at submission creation; triggers names clearance re-run when set via PATCH.
 - Names clearance entity list is now explicit: creation = [insured, broker]; cedant PATCH = [insured, broker, cedant].
+
+## Testing Workflow (SpecKit)
+
+For each specify-implement loop of SpecKit, Playwright e2e tests **must** be written or updated to cover the new behaviour before the loop is considered complete. The tests live in `frontend/tests/e2e/` and should:
+
+- Be committed alongside the implementation code in the same PR/commit
+- Cover the API contract (request/response), UI behaviour, and any agent/background interactions introduced in that loop
+- Follow the patterns in existing spec files: `helpers.ts` for shared setup, `waitForClearance` / polling helpers for async agent results
 
 ## Recent Changes
 

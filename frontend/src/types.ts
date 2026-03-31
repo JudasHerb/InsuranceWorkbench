@@ -30,7 +30,7 @@ export interface AgreedTerms {
 }
 
 export interface FacRiPanel {
-  id: string
+  facriPanelId: string
   reinsurerName: string
   reinsurerAgentEndpoint: string | null
   cededPct: number

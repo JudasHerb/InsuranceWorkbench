@@ -61,7 +61,7 @@ public class SubmissionRepository : ISubmissionRepository
         }
 
         var total = all.Count;
-        var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var items = all.OrderByDescending(s => s.UpdatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToList();
         return (items, total);
     }
 
@@ -106,7 +106,7 @@ public class SubmissionRepository : ISubmissionRepository
     {
         var submission = await GetByIdAsync(submissionId) ?? throw new KeyNotFoundException(submissionId);
         var layer = submission.Layers.FirstOrDefault(l => l.Id == layerId) ?? throw new KeyNotFoundException(layerId);
-        layer.FacriPanels.RemoveAll(p => p.Id == panelId);
+        layer.FacriPanels.RemoveAll(p => p.FacriPanelId == panelId);
         return await UpdateAsync(submission);
     }
 

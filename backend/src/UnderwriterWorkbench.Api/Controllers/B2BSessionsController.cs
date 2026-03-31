@@ -28,7 +28,7 @@ public class B2BSessionsController : ControllerBase
         var layer = submission.Layers.FirstOrDefault(l => l.Id == req.LayerId);
         if (layer is null) return NotFound(new { error = "LAYER_NOT_FOUND" });
 
-        var panel = layer.FacriPanels.FirstOrDefault(p => p.Id == req.FacriPanelId);
+        var panel = layer.FacriPanels.FirstOrDefault(p => p.FacriPanelId == req.FacriPanelId);
         if (panel is null) return NotFound(new { error = "FACRI_PANEL_NOT_FOUND" });
 
         var session = new B2BSession

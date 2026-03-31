@@ -24,7 +24,7 @@ public class FacRiController : ControllerBase
 
         var panel = new FacRiPanel
         {
-            Id = Guid.NewGuid().ToString(),
+            FacriPanelId = Guid.NewGuid().ToString(),
             ReinsurerName = req.ReinsurerName,
             ReinsurerAgentEndpoint = req.ReinsurerAgentEndpoint,
             CededPct = req.CededPct,
@@ -41,7 +41,7 @@ public class FacRiController : ControllerBase
 
         return CreatedAtAction(nameof(AddFacriPanel), new { submissionId, layerId }, new
         {
-            facriPanelId = panel.Id,
+            facriPanelId = panel.FacriPanelId,
             reinsurerName = panel.ReinsurerName,
             cededPct = panel.CededPct,
             status = panel.Status

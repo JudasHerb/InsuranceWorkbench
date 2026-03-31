@@ -111,8 +111,8 @@ export default function AgentsTab() {
             <h2 className="text-base font-semibold mb-4">Dispatch Legal Review</h2>
             <form onSubmit={handleDispatch} className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Document</label>
-                <select value={legalForm.documentId} onChange={(e) => setLegalForm((f) => ({ ...f, documentId: e.target.value }))}
+                <label htmlFor="dispatch-doc" className="block text-sm font-medium text-gray-700 mb-1">Document</label>
+                <select id="dispatch-doc" value={legalForm.documentId} onChange={(e) => setLegalForm((f) => ({ ...f, documentId: e.target.value }))}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
                   <option value="">No document (use context)</option>
                   {documents.map((d) => (
@@ -121,14 +121,14 @@ export default function AgentsTab() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Jurisdiction</label>
-                <input value={legalForm.jurisdiction}
+                <label htmlFor="dispatch-jurisdiction" className="block text-sm font-medium text-gray-700 mb-1">Jurisdiction</label>
+                <input id="dispatch-jurisdiction" value={legalForm.jurisdiction}
                   onChange={(e) => setLegalForm((f) => ({ ...f, jurisdiction: e.target.value }))}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Checklist Type</label>
-                <select value={legalForm.checklistType} onChange={(e) => setLegalForm((f) => ({ ...f, checklistType: e.target.value }))}
+                <label htmlFor="dispatch-checklist" className="block text-sm font-medium text-gray-700 mb-1">Checklist Type</label>
+                <select id="dispatch-checklist" value={legalForm.checklistType} onChange={(e) => setLegalForm((f) => ({ ...f, checklistType: e.target.value }))}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
                   <option value="standard">Standard</option>
                   <option value="commercial">Commercial</option>

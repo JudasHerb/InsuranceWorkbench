@@ -4,8 +4,8 @@ namespace UnderwriterWorkbench.Core.Models;
 
 public class FacRiPanel
 {
-    [JsonPropertyName("id")]
-    public string Id { get; set; } = Guid.NewGuid().ToString();
+    [JsonPropertyName("facriPanelId")]
+    public string FacriPanelId { get; set; } = Guid.NewGuid().ToString();
 
     [JsonPropertyName("reinsurerName")]
     public string ReinsurerName { get; set; } = string.Empty;

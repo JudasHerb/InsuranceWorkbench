@@ -34,6 +34,7 @@ export default function PortfolioView() {
   const expiryManuallySet = useRef(false)
 
   useEffect(() => {
+    let cancelled = false
     workbenchHub.joinPortfolio()
 
     const handler = (payload: Parameters<typeof applyPortfolioUpdated>[0]) => applyPortfolioUpdated(payload)
@@ -48,19 +49,27 @@ export default function PortfolioView() {
               ? { territory: filters.territory || undefined, lineOfBusiness: filters.lineOfBusiness || undefined, status: filters.status || undefined }
               : undefined,
           ),
-          workbenchApi.listSubmissions({ pageSize: 100 }),
+          workbenchApi.listSubmissions({
+            pageSize: 100,
+            territory: filters.territory || undefined,
+            lineOfBusiness: filters.lineOfBusiness || undefined,
+            status: filters.status || undefined,
+          }),
         ])
-        setSnapshot(snap)
-        setSubmissions(list.items)
+        if (!cancelled) {
+          setSnapshot(snap)
+          setSubmissions(list.items)
+        }
       } catch {
         // ignore
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
     load()
 
     return () => {
+      cancelled = true
       workbenchHub.offPortfolioUpdated(handler)
       workbenchHub.leavePortfolio()
     }
@@ -274,8 +283,9 @@ export default function PortfolioView() {
             <form onSubmit={handleCreate} className="space-y-3">
               {/* Insured Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Insured Name</label>
+                <label htmlFor="new-insured-name" className="block text-sm font-medium text-gray-700 mb-1">Insured Name</label>
                 <input
+                  id="new-insured-name"
                   required
                   value={form.insuredName}
                   onChange={(e) => setForm((f) => ({ ...f, insuredName: e.target.value }))}
@@ -285,8 +295,9 @@ export default function PortfolioView() {
 
               {/* Broker */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Broker</label>
+                <label htmlFor="new-broker" className="block text-sm font-medium text-gray-700 mb-1">Broker</label>
                 <input
+                  id="new-broker"
                   required
                   value={form.broker}
                   onChange={(e) => setForm((f) => ({ ...f, broker: e.target.value }))}
@@ -296,8 +307,9 @@ export default function PortfolioView() {
 
               {/* Territory */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Territory</label>
+                <label htmlFor="new-territory" className="block text-sm font-medium text-gray-700 mb-1">Territory</label>
                 <select
+                  id="new-territory"
                   required
                   value={form.territory}
                   onChange={(e) => setForm((f) => ({ ...f, territory: e.target.value }))}
@@ -312,8 +324,9 @@ export default function PortfolioView() {
 
               {/* Line of Business */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Line of Business</label>
+                <label htmlFor="new-lob" className="block text-sm font-medium text-gray-700 mb-1">Line of Business</label>
                 <select
+                  id="new-lob"
                   required
                   value={form.lineOfBusiness}
                   onChange={(e) => handleLobChange(e.target.value)}
@@ -354,8 +367,9 @@ export default function PortfolioView() {
               {/* Dates */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Inception Date</label>
+                  <label htmlFor="new-inception-date" className="block text-sm font-medium text-gray-700 mb-1">Inception Date</label>
                   <input
+                    id="new-inception-date"
                     required
                     type="date"
                     value={form.inceptionDate}
@@ -364,8 +378,9 @@ export default function PortfolioView() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+                  <label htmlFor="new-expiry-date" className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
                   <input
+                    id="new-expiry-date"
                     required
                     type="date"
                     value={form.expiryDate}

@@ -261,7 +261,7 @@ public class B2BHostedService : BackgroundService
         var layer = submission.Layers.FirstOrDefault(l => l.Id == session.LayerId);
         if (layer is null) return;
 
-        var panel = layer.FacriPanels.FirstOrDefault(p => p.Id == session.FacriPanelId);
+        var panel = layer.FacriPanels.FirstOrDefault(p => p.FacriPanelId == session.FacriPanelId);
         if (panel is null) return;
 
         panel.AgreedTerms = session.FinalTerms;

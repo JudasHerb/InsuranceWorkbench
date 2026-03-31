@@ -164,8 +164,9 @@ export default function RiskSummaryTab() {
 
             {/* Cedant */}
             <div>
-              <label className="block text-xs text-gray-500 uppercase tracking-wide mb-1">Cedant</label>
+              <label htmlFor="edit-cedant" className="block text-xs text-gray-500 uppercase tracking-wide mb-1">Cedant</label>
               <input
+                id="edit-cedant"
                 value={editForm.cedant}
                 onChange={(e) => setEditForm((f) => f ? { ...f, cedant: e.target.value } : f)}
                 placeholder="Leave blank if not yet assigned"

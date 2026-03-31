@@ -109,26 +109,38 @@ export default function LayerStructureTab() {
               <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">No layers yet</td></tr>
             )}
             {layers.map((l) => (
-              <tr key={l.id}>
-                <td className="px-3 py-2 text-gray-500">{l.layerNo}</td>
-                <td className="px-3 py-2 capitalize">{l.layerType}</td>
-                <td className="px-3 py-2">{l.limit.toLocaleString()}</td>
-                <td className="px-3 py-2">{l.attachmentPoint.toLocaleString()}</td>
-                <td className="px-3 py-2">{l.lineSize.toLocaleString()}</td>
-                <td className="px-3 py-2">{l.premium.toLocaleString()}</td>
-                <td className="px-3 py-2">{l.currency}</td>
-                <td className="px-3 py-2">
-                  <span className="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600">{l.status}</span>
-                </td>
-                <td className="px-3 py-2">
-                  {currentSubmission.status !== 'bound' && (
-                    <div className="flex gap-2">
-                      <button onClick={() => openEdit(l.id)} className="text-indigo-600 hover:underline text-xs">Edit</button>
-                      <button onClick={() => handleDelete(l.id)} className="text-red-500 hover:underline text-xs">Delete</button>
-                    </div>
-                  )}
-                </td>
-              </tr>
+              <>
+                <tr key={l.id}>
+                  <td className="px-3 py-2 text-gray-500">{l.layerNo}</td>
+                  <td className="px-3 py-2 capitalize">{l.layerType}</td>
+                  <td className="px-3 py-2">{l.limit.toLocaleString()}</td>
+                  <td className="px-3 py-2">{l.attachmentPoint.toLocaleString()}</td>
+                  <td className="px-3 py-2">{l.lineSize.toLocaleString()}</td>
+                  <td className="px-3 py-2">{l.premium.toLocaleString()}</td>
+                  <td className="px-3 py-2">{l.currency}</td>
+                  <td className="px-3 py-2">
+                    <span className="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600">{l.status}</span>
+                  </td>
+                  <td className="px-3 py-2">
+                    {currentSubmission.status !== 'bound' && (
+                      <div className="flex gap-2">
+                        <button onClick={() => openEdit(l.id)} className="text-indigo-600 hover:underline text-xs">Edit</button>
+                        <button onClick={() => handleDelete(l.id)} className="text-red-500 hover:underline text-xs">Delete</button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+                {l.facriPanels.map((p) => (
+                  <tr key={p.facriPanelId} className="bg-indigo-50">
+                    <td className="px-3 py-1.5 pl-8 text-xs text-indigo-400" colSpan={2}>↳ FacRi</td>
+                    <td className="px-3 py-1.5 text-xs text-indigo-700 font-medium" colSpan={2}>{p.reinsurerName}</td>
+                    <td className="px-3 py-1.5 text-xs text-indigo-600" colSpan={2}>{p.cededPct}% cession</td>
+                    <td className="px-3 py-1.5" colSpan={3}>
+                      <span className="px-1.5 py-0.5 rounded text-xs bg-indigo-100 text-indigo-600">{p.status}</span>
+                    </td>
+                  </tr>
+                ))}
+              </>
             ))}
           </tbody>
         </table>
@@ -147,14 +159,17 @@ export default function LayerStructureTab() {
                   <option value="excess">Excess</option>
                 </select>
               </div>
-              {(['limit', 'attachmentPoint', 'lineSize', 'premium'] as const).map((key) => (
-                <div key={key}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{key.replace(/([A-Z])/g, ' $1')}</label>
-                  <input required type="number" min="0" step="any" value={form[key]}
-                    onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
-                </div>
-              ))}
+              {(['limit', 'attachmentPoint', 'lineSize', 'premium'] as const).map((key) => {
+                const label = { limit: 'Limit', attachmentPoint: 'Attachment Point', lineSize: 'Line Size', premium: 'Premium' }[key]
+                return (
+                  <div key={key}>
+                    <label htmlFor={`layer-${key}`} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                    <input id={`layer-${key}`} required type="number" min="0" step="any" value={form[key]}
+                      onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                  </div>
+                )
+              })}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
                 <input value={form.currency} onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}

@@ -36,7 +36,14 @@
       "Bash(node \"c:/Development/Underwriter Workbench/example_docs/gen_pdf.js\")",
       "Bash(powershell -Command \".specify/scripts/powershell/create-new-feature.ps1 ''Submission form enhancements: territory/LOB dropdowns, coverage multi-select, cedant deferred, expiry date auto-fill, names clearance re-run on cedant'' -Json -ShortName ''submission-form-enhancements''\")",
       "Bash(pwsh -Version)",
-      "Bash(powershell -Command \".specify/scripts/powershell/setup-plan.ps1 -Json\")"
+      "Bash(powershell -Command \".specify/scripts/powershell/setup-plan.ps1 -Json\")",
+      "Bash(npx playwright:*)",
+      "Bash(curl -s http://localhost:5000/health)",
+      "Bash(curl -s http://localhost:5001/health)",
+      "Bash(curl -s http://localhost:5100/health)",
+      "Bash(curl -s http://localhost:5050/health)",
+      "Bash(findstr \":50\")",
+      "Bash(findstr LISTEN)"
     ]
   }
 }

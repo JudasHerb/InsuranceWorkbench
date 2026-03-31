@@ -46,7 +46,7 @@ test.describe('New Submission modal', () => {
     await page.getByLabel('Expiry Date').fill('2026-12-31')
     // inception change should NOT override manual expiry
     await page.getByLabel('Inception Date').fill('2027-01-01')
-    await expect(page.getByLabel('Expiry Date')).toHaveValue('2028-01-01')
+    await expect(page.getByLabel('Expiry Date')).toHaveValue('2026-12-31')
   })
 
   test('creates a submission and navigates to it', async ({ page }) => {
