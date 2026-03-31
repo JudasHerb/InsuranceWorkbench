@@ -13,28 +13,11 @@ env:
 jobs:
 
   # ─── 1. Backend Tests + Code Coverage ────────────────────────────────────────
+  # Unit and Contract tests only — no Cosmos emulator needed (all deps mocked).
+  # Integration tests run implicitly via the E2E suite against the deployed staging env.
   test-backend:
     name: Backend Tests & Coverage
     runs-on: ubuntu-latest
-    services:
-      cosmos:
-        image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
-        ports:
-          - 8081:8081
-          - 10251:10251
-          - 10252:10252
-          - 10253:10253
-          - 10254:10254
-        env:
-          AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 1
-          AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: false
-          AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE: 127.0.0.1
-      azurite:
-        image: mcr.microsoft.com/azure-storage/azurite
-        ports:
-          - 10000:10000
-          - 10001:10001
-          - 10002:10002
 
     steps:
       - uses: actions/checkout@v4
@@ -44,34 +27,21 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Wait for Cosmos emulator
-        run: |
-          echo "Waiting for Cosmos DB emulator to initialise..."
-          timeout 180 bash -c 'until curl -sk https://localhost:8081/_explorer/emulator.pem > /dev/null 2>&1; do sleep 3; done'
-          echo "Cosmos emulator ready."
-
-      - name: Trust Cosmos emulator certificate
-        run: |
-          curl -sk https://localhost:8081/_explorer/emulator.pem -o cosmos-emulator.crt
-          sudo cp cosmos-emulator.crt /usr/local/share/ca-certificates/cosmos-emulator.crt
-          sudo update-ca-certificates
-
       - name: Restore
         run: dotnet restore backend/UnderwriterWorkbench.slnx
 
       - name: Build
         run: dotnet build backend/UnderwriterWorkbench.slnx --no-restore -c Release
 
-      - name: Test
+      - name: Test (Unit + Contract)
         run: |
           dotnet test backend/UnderwriterWorkbench.slnx \
             --no-build -c Release \
+            --filter "FullyQualifiedName!~Integration" \
             --collect:"XPlat Code Coverage" \
             --results-directory ./TestResults \
             --logger "trx;LogFileName=test-results.trx" \
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
-        env:
-          ASPNETCORE_ENVIRONMENT: Testing
 
       - name: Install ReportGenerator
         if: always()
@@ -174,98 +144,11 @@ jobs:
             dotnet-vuln-report.txt
             npm-audit-report.txt
 
-  # ─── 4. E2E Tests (Playwright) ───────────────────────────────────────────────
-  test-e2e:
-    name: E2E Tests (Playwright)
-    runs-on: ubuntu-latest
-    services:
-      cosmos:
-        image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
-        ports:
-          - 8081:8081
-          - 10251:10251
-          - 10252:10252
-          - 10253:10253
-          - 10254:10254
-        env:
-          AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 1
-          AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: false
-          AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE: 127.0.0.1
-      azurite:
-        image: mcr.microsoft.com/azure-storage/azurite
-        ports:
-          - 10000:10000
-          - 10001:10001
-          - 10002:10002
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Restore & build backend
-        run: |
-          dotnet restore backend/UnderwriterWorkbench.slnx
-          dotnet build backend/UnderwriterWorkbench.slnx --no-restore -c Release
-
-      - name: Wait for Cosmos emulator
-        run: |
-          echo "Waiting for Cosmos DB emulator to initialise..."
-          timeout 180 bash -c 'until curl -sk https://localhost:8081/_explorer/emulator.pem > /dev/null 2>&1; do sleep 3; done'
-          echo "Cosmos emulator ready."
-
-      - name: Trust Cosmos emulator certificate
-        run: |
-          curl -sk https://localhost:8081/_explorer/emulator.pem -o cosmos-emulator.crt
-          sudo cp cosmos-emulator.crt /usr/local/share/ca-certificates/cosmos-emulator.crt
-          sudo update-ca-certificates
-
-      - name: Start backend API (Testing mode)
-        run: |
-          cd backend
-          ASPNETCORE_ENVIRONMENT=Testing ASPNETCORE_URLS=http://localhost:5230 \
-            dotnet run --project src/UnderwriterWorkbench.Api --no-build -c Release &
-          echo "Waiting for backend API on :5230..."
-          timeout 90 bash -c 'until nc -z localhost 5230; do sleep 2; done'
-          echo "Backend API ready."
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Install Playwright browsers
-        working-directory: frontend
-        run: npx playwright install --with-deps chromium
-
-      - name: Run Playwright tests
-        working-directory: frontend
-        run: npm run test:e2e
-        env:
-          CI: true
-
-      - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report
-          path: frontend/playwright-report/
-          retention-days: 30
-
-  # ─── 5. Build & Push Docker Image ────────────────────────────────────────────
+  # ─── 4. Build & Push Docker Image ────────────────────────────────────────────
   build-and-push:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
-    needs: [test-backend, test-e2e, security-scan, dependency-scan]
+    needs: [test-backend, security-scan, dependency-scan]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     outputs:
       image-tag: ${{ steps.set-tag.outputs.IMAGE_TAG }}
@@ -278,7 +161,7 @@ jobs:
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           echo "IMAGE_TAG=${{ secrets.ACR_LOGIN_SERVER }}/underwriter-workbench-api:${SHORT_SHA}" >> $GITHUB_OUTPUT
-          echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
+          echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_OUTPUT
 
       - name: Log in to Azure Container Registry
         uses: azure/docker-login@v1
@@ -297,7 +180,7 @@ jobs:
           file: infrastructure/docker/Dockerfile.api
           push: true
           tags: |
-            ${{ secrets.ACR_LOGIN_SERVER }}/underwriter-workbench-api:${{ env.SHORT_SHA }}
+            ${{ secrets.ACR_LOGIN_SERVER }}/underwriter-workbench-api:${{ steps.set-tag.outputs.SHORT_SHA }}
             ${{ secrets.ACR_LOGIN_SERVER }}/underwriter-workbench-api:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -317,7 +200,7 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
 
-  # ─── 6. Deploy to Staging ────────────────────────────────────────────────────
+  # ─── 5. Deploy to Staging ────────────────────────────────────────────────────
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
@@ -359,11 +242,54 @@ jobs:
           app_location: frontend
           output_location: dist
 
+  # ─── 6. E2E Tests against Staging ────────────────────────────────────────────
+  # Runs against the live staging deployment — no emulators, no mocks.
+  # Failures here block promotion to production.
+  test-e2e:
+    name: E2E Tests (Playwright → Staging)
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests against staging
+        working-directory: frontend
+        run: npm run test:e2e
+        env:
+          CI: true
+          # Override the default localhost baseURL — tests run against the deployed staging app.
+          # The Playwright config reads PLAYWRIGHT_BASE_URL when set.
+          PLAYWRIGHT_BASE_URL: ${{ vars.STAGING_URL }}
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 30
+
   # ─── 7. Deploy to Production (manual approval gate) ──────────────────────────
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [deploy-staging]
+    needs: [test-e2e]
     environment:
       name: production           # configure required reviewers on this environment in GitHub
       url: ${{ vars.PROD_URL }}
