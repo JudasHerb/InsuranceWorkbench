@@ -247,8 +247,9 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APP_API_TOKEN_STAGING }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
-          app_location: frontend
-          output_location: dist
+          app_location: frontend/dist
+          skip_app_build: true
+          output_location: ""
 
   # ─── 6. E2E Tests against Staging ────────────────────────────────────────────
   # Runs against the live staging deployment — no emulators, no mocks.
@@ -338,5 +339,6 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APP_API_TOKEN_PROD }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
-          app_location: frontend
-          output_location: dist
+          app_location: frontend/dist
+          skip_app_build: true
+          output_location: ""
