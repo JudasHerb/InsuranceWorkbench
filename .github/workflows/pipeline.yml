@@ -1,0 +1,402 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  DOTNET_VERSION: '10.0.x'   # net10.0 test projects; backward-compat with net9.0 API
+  NODE_VERSION: '22.x'
+
+jobs:
+
+  # ─── 1. Backend Tests + Code Coverage ────────────────────────────────────────
+  test-backend:
+    name: Backend Tests & Coverage
+    runs-on: ubuntu-latest
+    services:
+      cosmos:
+        image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+        ports:
+          - 8081:8081
+          - 10251:10251
+          - 10252:10252
+          - 10253:10253
+          - 10254:10254
+        env:
+          AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 1
+          AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: false
+          AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE: 127.0.0.1
+      azurite:
+        image: mcr.microsoft.com/azure-storage/azurite
+        ports:
+          - 10000:10000
+          - 10001:10001
+          - 10002:10002
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Wait for Cosmos emulator
+        run: |
+          echo "Waiting for Cosmos DB emulator to initialise..."
+          timeout 180 bash -c 'until curl -sk https://localhost:8081/_explorer/emulator.pem > /dev/null 2>&1; do sleep 3; done'
+          echo "Cosmos emulator ready."
+
+      - name: Trust Cosmos emulator certificate
+        run: |
+          curl -sk https://localhost:8081/_explorer/emulator.pem -o cosmos-emulator.crt
+          sudo cp cosmos-emulator.crt /usr/local/share/ca-certificates/cosmos-emulator.crt
+          sudo update-ca-certificates
+
+      - name: Restore
+        run: dotnet restore backend/UnderwriterWorkbench.slnx
+
+      - name: Build
+        run: dotnet build backend/UnderwriterWorkbench.slnx --no-restore -c Release
+
+      - name: Test
+        run: |
+          dotnet test backend/UnderwriterWorkbench.slnx \
+            --no-build -c Release \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./TestResults \
+            --logger "trx;LogFileName=test-results.trx" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+        env:
+          ASPNETCORE_ENVIRONMENT: Testing
+
+      - name: Install ReportGenerator
+        if: always()
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+
+      - name: Generate coverage report
+        if: always()
+        run: |
+          reportgenerator \
+            -reports:"TestResults/**/coverage.cobertura.xml" \
+            -targetdir:"coverage-report" \
+            -reporttypes:"Html;Cobertura;MarkdownSummaryGithub"
+
+      - name: Publish coverage summary
+        if: always()
+        run: cat coverage-report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage-report/
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results
+          path: TestResults/
+
+  # ─── 2. SAST Security Scan (CodeQL) ──────────────────────────────────────────
+  security-scan:
+    name: Security Scan (CodeQL)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp, javascript-typescript
+          queries: security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+
+  # ─── 3. Dependency Vulnerability Scan ────────────────────────────────────────
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Scan .NET packages
+        run: |
+          dotnet restore backend/UnderwriterWorkbench.slnx
+          dotnet list backend/UnderwriterWorkbench.slnx package --vulnerable --include-transitive 2>&1 | tee dotnet-vuln-report.txt
+          if grep -q "has the following vulnerable packages" dotnet-vuln-report.txt; then
+            echo "::warning::Vulnerable .NET packages found — see the vulnerability-reports artifact."
+          fi
+
+      - name: Scan npm packages
+        working-directory: frontend
+        run: |
+          npm ci --prefer-offline
+          npm audit --audit-level=high 2>&1 | tee ../npm-audit-report.txt
+        continue-on-error: true  # warn only; high/critical findings surface in the artifact
+
+      - name: Upload vulnerability reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vulnerability-reports
+          path: |
+            dotnet-vuln-report.txt
+            npm-audit-report.txt
+
+  # ─── 4. E2E Tests (Playwright) ───────────────────────────────────────────────
+  test-e2e:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    services:
+      cosmos:
+        image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+        ports:
+          - 8081:8081
+          - 10251:10251
+          - 10252:10252
+          - 10253:10253
+          - 10254:10254
+        env:
+          AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 1
+          AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: false
+          AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE: 127.0.0.1
+      azurite:
+        image: mcr.microsoft.com/azure-storage/azurite
+        ports:
+          - 10000:10000
+          - 10001:10001
+          - 10002:10002
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Restore & build backend
+        run: |
+          dotnet restore backend/UnderwriterWorkbench.slnx
+          dotnet build backend/UnderwriterWorkbench.slnx --no-restore -c Release
+
+      - name: Wait for Cosmos emulator
+        run: |
+          echo "Waiting for Cosmos DB emulator to initialise..."
+          timeout 180 bash -c 'until curl -sk https://localhost:8081/_explorer/emulator.pem > /dev/null 2>&1; do sleep 3; done'
+          echo "Cosmos emulator ready."
+
+      - name: Trust Cosmos emulator certificate
+        run: |
+          curl -sk https://localhost:8081/_explorer/emulator.pem -o cosmos-emulator.crt
+          sudo cp cosmos-emulator.crt /usr/local/share/ca-certificates/cosmos-emulator.crt
+          sudo update-ca-certificates
+
+      - name: Start backend API (Testing mode)
+        run: |
+          cd backend
+          ASPNETCORE_ENVIRONMENT=Testing ASPNETCORE_URLS=http://localhost:5230 \
+            dotnet run --project src/UnderwriterWorkbench.Api --no-build -c Release &
+          echo "Waiting for backend API on :5230..."
+          timeout 90 bash -c 'until nc -z localhost 5230; do sleep 2; done'
+          echo "Backend API ready."
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        working-directory: frontend
+        run: npm run test:e2e
+        env:
+          CI: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 30
+
+  # ─── 5. Build & Push Docker Image ────────────────────────────────────────────
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-e2e, security-scan, dependency-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      image-tag: ${{ steps.set-tag.outputs.IMAGE_TAG }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive short SHA image tag
+        id: set-tag
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "IMAGE_TAG=${{ secrets.ACR_LOGIN_SERVER }}/underwriter-workbench-api:${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
+
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/
+          file: infrastructure/docker/Dockerfile.api
+          push: true
+          tags: |
+            ${{ secrets.ACR_LOGIN_SERVER }}/underwriter-workbench-api:${{ env.SHORT_SHA }}
+            ${{ secrets.ACR_LOGIN_SERVER }}/underwriter-workbench-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan container image for vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.set-tag.outputs.IMAGE_TAG }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0'   # surface findings but do not fail the build
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+  # ─── 6. Deploy to Staging ────────────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    environment:
+      name: staging
+      url: ${{ secrets.STAGING_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy API to Azure Container Apps (Staging)
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az containerapp update \
+              --name ${{ secrets.AZURE_CONTAINER_APP_NAME_STAGING }} \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --image ${{ needs.build-and-push.outputs.image-tag }}
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy frontend to Azure Static Web Apps (Staging)
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APP_API_TOKEN_STAGING }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: frontend
+          output_location: dist
+
+  # ─── 7. Deploy to Production (manual approval gate) ──────────────────────────
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    environment:
+      name: production           # configure required reviewers on this environment in GitHub
+      url: ${{ secrets.PROD_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy API to Azure Container Apps (Production)
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az containerapp update \
+              --name ${{ secrets.AZURE_CONTAINER_APP_NAME_PROD }} \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --image ${{ needs.build-and-push.outputs.image-tag }}
+
+      - name: Build frontend (Production)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy frontend to Azure Static Web Apps (Production)
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APP_API_TOKEN_PROD }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: frontend
+          output_location: dist
