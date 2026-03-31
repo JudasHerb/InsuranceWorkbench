@@ -1,0 +1,27 @@
+hooks:
+  after_implement:
+    - extension: readme-update
+      command: update-readme
+      description: >
+        Update README.md to reflect any new agents, infrastructure resources, architectural
+        changes, stack additions, or CI/CD changes introduced in this implementation loop.
+        Preserve all existing sections; add or amend only what changed.
+      prompt: |
+        Review the feature that was just implemented and update README.md accordingly.
+
+        Sections to consider updating:
+        - **Architecture** diagrams — add new components, flows, or relationships introduced
+        - **Stack** table — add any new technologies
+        - **Agents** table — add any new agents or update descriptions
+        - **Project Structure** — reflect new directories or significant new files
+        - **Infrastructure** — add any new Azure resources and their `az cli` provisioning commands
+        - **CI/CD Pipeline** — update the jobs table if the pipeline changed
+        - **Deployed Environments** — update URLs or environment names if they changed
+
+        Rules:
+        - Only update sections that are actually affected by this feature
+        - Do not rewrite sections that did not change
+        - Keep Mermaid diagrams in sync with actual architecture
+        - Commit the updated README.md alongside the feature code
+      optional: false
+      enabled: true
