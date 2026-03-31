@@ -314,9 +314,10 @@ jobs:
         run: npm run test:e2e
         env:
           CI: true
-          # Override the default localhost baseURL — tests run against the deployed staging app.
-          # The Playwright config reads PLAYWRIGHT_BASE_URL when set.
+          # UI navigations use the SWA (frontend) URL
           PLAYWRIGHT_BASE_URL: ${{ vars.STAGING_URL }}
+          # API/helper calls hit the backend Container App directly (different origin)
+          PLAYWRIGHT_API_BASE_URL: https://ca-uw-workbench-staging.gentledesert-9cf0d972.uksouth.azurecontainerapps.io
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
