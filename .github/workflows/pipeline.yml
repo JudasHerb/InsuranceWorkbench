@@ -324,7 +324,7 @@ jobs:
     needs: [build-and-push]
     environment:
       name: staging
-      url: ${{ secrets.STAGING_URL }}
+      url: ${{ vars.STAGING_URL }}
 
     steps:
       - uses: actions/checkout@v4
@@ -366,7 +366,7 @@ jobs:
     needs: [deploy-staging]
     environment:
       name: production           # configure required reviewers on this environment in GitHub
-      url: ${{ secrets.PROD_URL }}
+      url: ${{ vars.PROD_URL }}
 
     steps:
       - uses: actions/checkout@v4
