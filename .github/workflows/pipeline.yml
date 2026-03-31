@@ -60,14 +60,14 @@ jobs:
         run: cat coverage-report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-report
           path: coverage-report/
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: backend-test-results
@@ -136,7 +136,7 @@ jobs:
         continue-on-error: true  # warn only; high/critical findings surface in the artifact
 
       - name: Upload vulnerability reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: vulnerability-reports
@@ -320,7 +320,7 @@ jobs:
           PLAYWRIGHT_API_BASE_URL: https://ca-uw-workbench-staging.gentledesert-9cf0d972.uksouth.azurecontainerapps.io
 
       - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report
