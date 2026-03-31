@@ -228,6 +228,8 @@ jobs:
           ACR_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
           ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+          COSMOS_CONN: ${{ secrets.COSMOS_CONNECTION_STRING }}
+          BLOB_CONN: ${{ secrets.BLOB_CONNECTION_STRING }}
         with:
           azcliversion: latest
           inlineScript: |
@@ -244,7 +246,18 @@ jobs:
             az containerapp update \
               --name "$APP_NAME" \
               --resource-group "$RESOURCE_GROUP" \
-              --image "$IMAGE_TAG"
+              --image "$IMAGE_TAG" \
+              --set-env-vars \
+                "CosmosDb__ConnectionString=${COSMOS_CONN}" \
+                "CosmosDb__DatabaseName=underwriter-workbench" \
+                "BlobStorage__ConnectionString=${BLOB_CONN}" \
+                "BlobStorage__DocumentContainer=uw-documents" \
+                "Sanctions__UseMock=true" \
+                "DevAgent__UseMock=true" \
+                "B2B__UseSimulatedResponder=true" \
+                "B2B__HmacSecret=staging-secret" \
+                "OpenShift__UseMock=true" \
+                "ASPNETCORE_ENVIRONMENT=Production"
 
       - name: Build frontend (Staging)
         working-directory: frontend
@@ -333,6 +346,8 @@ jobs:
           ACR_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
           ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+          COSMOS_CONN: ${{ secrets.COSMOS_CONNECTION_STRING }}
+          BLOB_CONN: ${{ secrets.BLOB_CONNECTION_STRING }}
         with:
           azcliversion: latest
           inlineScript: |
@@ -349,7 +364,18 @@ jobs:
             az containerapp update \
               --name "$APP_NAME" \
               --resource-group "$RESOURCE_GROUP" \
-              --image "$IMAGE_TAG"
+              --image "$IMAGE_TAG" \
+              --set-env-vars \
+                "CosmosDb__ConnectionString=${COSMOS_CONN}" \
+                "CosmosDb__DatabaseName=underwriter-workbench" \
+                "BlobStorage__ConnectionString=${BLOB_CONN}" \
+                "BlobStorage__DocumentContainer=uw-documents" \
+                "Sanctions__UseMock=true" \
+                "DevAgent__UseMock=true" \
+                "B2B__UseSimulatedResponder=true" \
+                "B2B__HmacSecret=prod-secret-change-me" \
+                "OpenShift__UseMock=true" \
+                "ASPNETCORE_ENVIRONMENT=Production"
 
       - name: Build frontend (Production)
         working-directory: frontend
