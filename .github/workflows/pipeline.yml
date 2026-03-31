@@ -225,9 +225,18 @@ jobs:
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
           APP_NAME: ${{ secrets.AZURE_CONTAINER_APP_NAME_STAGING }}
           RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          ACR_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         with:
           azcliversion: latest
           inlineScript: |
+            az containerapp registry set \
+              --name "$APP_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --server "$ACR_SERVER" \
+              --username "$ACR_USERNAME" \
+              --password "$ACR_PASSWORD"
             az containerapp update \
               --name "$APP_NAME" \
               --resource-group "$RESOURCE_GROUP" \
@@ -317,9 +326,18 @@ jobs:
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
           APP_NAME: ${{ secrets.AZURE_CONTAINER_APP_NAME_PROD }}
           RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          ACR_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         with:
           azcliversion: latest
           inlineScript: |
+            az containerapp registry set \
+              --name "$APP_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --server "$ACR_SERVER" \
+              --username "$ACR_USERNAME" \
+              --password "$ACR_PASSWORD"
             az containerapp update \
               --name "$APP_NAME" \
               --resource-group "$RESOURCE_GROUP" \
