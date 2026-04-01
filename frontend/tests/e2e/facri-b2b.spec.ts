@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { createSubmission, addLayer, waitForClearance } from './helpers'
+import { createSubmission, addLayer, waitForClearance, API_BASE } from './helpers'
 
 const mandate = {
   maxCessionPct: 30,
@@ -21,7 +21,7 @@ test.describe('FacRi panel management', () => {
 
   test('can add a FacRi panel to a layer', async ({ request }) => {
     const res = await request.post(
-      `/api/v1/submissions/${submissionId}/layers/${layerId}/facri`,
+      `${API_BASE}/api/v1/submissions/${submissionId}/layers/${layerId}/facri`,
       { data: { reinsurerName: 'Alpha Re', cededPct: 20 } },
     )
     expect(res.status()).toBe(201)
@@ -34,11 +34,11 @@ test.describe('FacRi panel management', () => {
 
   test('FacRi panel appears in submission.layers after creation', async ({ request }) => {
     await request.post(
-      `/api/v1/submissions/${submissionId}/layers/${layerId}/facri`,
+      `${API_BASE}/api/v1/submissions/${submissionId}/layers/${layerId}/facri`,
       { data: { reinsurerName: 'Beta Re', cededPct: 15 } },
     )
 
-    const subRes = await request.get(`/api/v1/submissions/${submissionId}`)
+    const subRes = await request.get(`${API_BASE}/api/v1/submissions/${submissionId}`)
     const body = await subRes.json()
     const layer = body.layers.find((l: { id: string }) => l.id === layerId)
     expect(layer.facriPanels).toHaveLength(1)
@@ -48,15 +48,15 @@ test.describe('FacRi panel management', () => {
 
   test('can add multiple FacRi panels to the same layer', async ({ request }) => {
     await request.post(
-      `/api/v1/submissions/${submissionId}/layers/${layerId}/facri`,
+      `${API_BASE}/api/v1/submissions/${submissionId}/layers/${layerId}/facri`,
       { data: { reinsurerName: 'Gamma Re', cededPct: 10 } },
     )
     await request.post(
-      `/api/v1/submissions/${submissionId}/layers/${layerId}/facri`,
+      `${API_BASE}/api/v1/submissions/${submissionId}/layers/${layerId}/facri`,
       { data: { reinsurerName: 'Delta Re', cededPct: 10 } },
     )
 
-    const subRes = await request.get(`/api/v1/submissions/${submissionId}`)
+    const subRes = await request.get(`${API_BASE}/api/v1/submissions/${submissionId}`)
     const body = await subRes.json()
     const layer = body.layers.find((l: { id: string }) => l.id === layerId)
     expect(layer.facriPanels).toHaveLength(2)
@@ -64,17 +64,17 @@ test.describe('FacRi panel management', () => {
 
   test('can delete a FacRi panel', async ({ request }) => {
     const addRes = await request.post(
-      `/api/v1/submissions/${submissionId}/layers/${layerId}/facri`,
+      `${API_BASE}/api/v1/submissions/${submissionId}/layers/${layerId}/facri`,
       { data: { reinsurerName: 'Epsilon Re', cededPct: 25 } },
     )
     const { facriPanelId } = await addRes.json()
 
     const delRes = await request.delete(
-      `/api/v1/submissions/${submissionId}/layers/${layerId}/facri/${facriPanelId}`,
+      `${API_BASE}/api/v1/submissions/${submissionId}/layers/${layerId}/facri/${facriPanelId}`,
     )
     expect(delRes.status()).toBe(204)
 
-    const subRes = await request.get(`/api/v1/submissions/${submissionId}`)
+    const subRes = await request.get(`${API_BASE}/api/v1/submissions/${submissionId}`)
     const body = await subRes.json()
     const layer = body.layers.find((l: { id: string }) => l.id === layerId)
     expect(layer.facriPanels).toHaveLength(0)
@@ -82,7 +82,7 @@ test.describe('FacRi panel management', () => {
 
   test('FacRi panel shows in LayerStructureTab UI after creation', async ({ page, request }) => {
     await request.post(
-      `/api/v1/submissions/${submissionId}/layers/${layerId}/facri`,
+      `${API_BASE}/api/v1/submissions/${submissionId}/layers/${layerId}/facri`,
       { data: { reinsurerName: 'UI Check Re', cededPct: 30 } },
     )
 
@@ -106,7 +106,7 @@ test.describe('B2B session management', () => {
     layerId = await addLayer(request, submissionId)
 
     const res = await request.post(
-      `/api/v1/submissions/${submissionId}/layers/${layerId}/facri`,
+      `${API_BASE}/api/v1/submissions/${submissionId}/layers/${layerId}/facri`,
       { data: { reinsurerName: 'Session Re', cededPct: 25 } },
     )
     facriPanelId = (await res.json()).facriPanelId
@@ -114,7 +114,7 @@ test.describe('B2B session management', () => {
 
   test('can initiate a B2B session and it is created as active', async ({ request }) => {
     const res = await request.post(
-      `/api/v1/submissions/${submissionId}/b2b-sessions`,
+      `${API_BASE}/api/v1/submissions/${submissionId}/b2b-sessions`,
       { data: { layerId, facriPanelId, mandate } },
     )
     expect(res.status()).toBe(201)
@@ -125,24 +125,23 @@ test.describe('B2B session management', () => {
 
   test('can retrieve a B2B session by id', async ({ request }) => {
     const initRes = await request.post(
-      `/api/v1/submissions/${submissionId}/b2b-sessions`,
+      `${API_BASE}/api/v1/submissions/${submissionId}/b2b-sessions`,
       { data: { layerId, facriPanelId, mandate } },
     )
     const { sessionId } = await initRes.json()
 
     const getRes = await request.get(
-      `/api/v1/submissions/${submissionId}/b2b-sessions/${sessionId}`,
+      `${API_BASE}/api/v1/submissions/${submissionId}/b2b-sessions/${sessionId}`,
     )
     expect(getRes.status()).toBe(200)
     const body = await getRes.json()
-    // Session id may be in "id" or "sessionId"
     expect(body.id ?? body.sessionId).toBeTruthy()
     expect(['active', 'agreed', 'rejected', 'stalled']).toContain(body.status)
   })
 
   test('returns 404 when layerId does not exist', async ({ request }) => {
     const res = await request.post(
-      `/api/v1/submissions/${submissionId}/b2b-sessions`,
+      `${API_BASE}/api/v1/submissions/${submissionId}/b2b-sessions`,
       { data: { layerId: 'non-existent-id', facriPanelId, mandate } },
     )
     expect(res.status()).toBe(404)
@@ -151,7 +150,7 @@ test.describe('B2B session management', () => {
 
   test('returns 404 when facriPanelId does not exist on the layer', async ({ request }) => {
     const res = await request.post(
-      `/api/v1/submissions/${submissionId}/b2b-sessions`,
+      `${API_BASE}/api/v1/submissions/${submissionId}/b2b-sessions`,
       { data: { layerId, facriPanelId: 'non-existent-panel', mandate } },
     )
     expect(res.status()).toBe(404)
@@ -160,13 +159,13 @@ test.describe('B2B session management', () => {
 
   test('can manually reject a B2B session', async ({ request }) => {
     const initRes = await request.post(
-      `/api/v1/submissions/${submissionId}/b2b-sessions`,
+      `${API_BASE}/api/v1/submissions/${submissionId}/b2b-sessions`,
       { data: { layerId, facriPanelId, mandate } },
     )
     const { sessionId } = await initRes.json()
 
     const rejectRes = await request.post(
-      `/api/v1/submissions/${submissionId}/b2b-sessions/${sessionId}/respond`,
+      `${API_BASE}/api/v1/submissions/${submissionId}/b2b-sessions/${sessionId}/respond`,
       { data: { action: 'reject', counterPayload: null } },
     )
     expect(rejectRes.status()).toBe(200)

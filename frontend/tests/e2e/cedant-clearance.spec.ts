@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { API_BASE } from './helpers'
 
 test.describe('Cedant names clearance re-run', () => {
   let submissionId: string
@@ -8,7 +9,7 @@ test.describe('Cedant names clearance re-run', () => {
     const inception = today.toISOString().slice(0, 10)
     const expiry = new Date(today.setFullYear(today.getFullYear() + 1)).toISOString().slice(0, 10)
 
-    const res = await request.post('/api/v1/submissions', {
+    const res = await request.post(`${API_BASE}/api/v1/submissions`, {
       data: {
         riskDetails: {
           insuredName: 'Cedant Test Corp',

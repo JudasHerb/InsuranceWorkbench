@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { createSubmission, addLayer, waitForClearance, dispatchAndWaitForLegalReview } from './helpers'
+import { createSubmission, addLayer, waitForClearance, dispatchAndWaitForLegalReview, API_BASE } from './helpers'
 
 // ── API-level gate enforcement ─────────────────────────────────────────────────
 
@@ -12,7 +12,7 @@ test.describe('Bind gate: API enforcement', () => {
     await waitForClearance(request, id, 'clear')
     await dispatchAndWaitForLegalReview(request, id)
 
-    const res = await request.post(`/api/v1/submissions/${id}/bind`)
+    const res = await request.post(`${API_BASE}/api/v1/submissions/${id}/bind`)
     expect(res.status()).toBe(422)
     const body = await res.json()
     expect(body.reason).toBe('no-layers')
@@ -23,7 +23,7 @@ test.describe('Bind gate: API enforcement', () => {
     await waitForClearance(request, id, 'blocked')
     await addLayer(request, id)
 
-    const res = await request.post(`/api/v1/submissions/${id}/bind`)
+    const res = await request.post(`${API_BASE}/api/v1/submissions/${id}/bind`)
     expect(res.status()).toBe(422)
     const body = await res.json()
     expect(body.reason).toBe('names-clearance-blocked')
@@ -34,33 +34,24 @@ test.describe('Bind gate: API enforcement', () => {
     await addLayer(request, id)
     await waitForClearance(request, id, 'clear')
 
-    const res = await request.post(`/api/v1/submissions/${id}/bind`)
+    const res = await request.post(`${API_BASE}/api/v1/submissions/${id}/bind`)
     expect(res.status()).toBe(422)
     const body = await res.json()
     expect(body.reason).toBe('legal-review-required')
   })
 
   test('layer operations return 422 when submission is already bound', async ({ request }) => {
-    // Build a submission that passes all gates by injecting a recommendation directly
-    // via PATCH (we have to test this differently since we can't fully bind in tests)
-    // Instead: verify the layer DELETE endpoint returns 422 on a bound submission.
-    //
-    // We cannot easily bind (needs completed legal review), so we test the guard
-    // via a named-entity that produces a BLOCKED clearance to ensure the 422 path runs.
-    // The actual LAYER_LOCKED guard is covered by the fact that bound status blocks edits.
-    //
-    // Test the error code structure matches the spec:
     const id = await createSubmission(request)
     const layerId = await addLayer(request, id)
     await waitForClearance(request, id, 'clear')
 
     // Attempt bind without legal review – we already know it returns 422
-    const bindRes = await request.post(`/api/v1/submissions/${id}/bind`)
+    const bindRes = await request.post(`${API_BASE}/api/v1/submissions/${id}/bind`)
     expect(bindRes.status()).toBe(422)
     expect((await bindRes.json()).error).toBe('BIND_BLOCKED')
 
     // Delete should still work (submission not bound)
-    const delRes = await request.delete(`/api/v1/submissions/${id}/layers/${layerId}`)
+    const delRes = await request.delete(`${API_BASE}/api/v1/submissions/${id}/layers/${layerId}`)
     expect(delRes.status()).toBe(204)
   })
 })

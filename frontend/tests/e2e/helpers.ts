@@ -2,7 +2,7 @@ import type { APIRequestContext } from '@playwright/test'
 
 // In CI the frontend (PLAYWRIGHT_BASE_URL) and backend (PLAYWRIGHT_API_BASE_URL)
 // are on different origins. Locally both are relative (empty string → Vite proxy).
-const API_BASE = process.env.PLAYWRIGHT_API_BASE_URL ?? ''
+export const API_BASE = process.env.PLAYWRIGHT_API_BASE_URL ?? ''
 
 export interface SubmissionOptions {
   insuredName?: string
