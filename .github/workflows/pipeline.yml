@@ -250,16 +250,15 @@ jobs:
               --resource-group "$RESOURCE_GROUP" \
               --set-env-vars \
                 CosmosDb__ConnectionString="$COSMOS_CONN" \
-                CosmosDb__DatabaseName=underwriter-workbench \
+                CosmosDb__DatabaseName=underwriter-workbench-staging \
                 BlobStorage__ConnectionString="$BLOB_CONN" \
-                BlobStorage__DocumentContainer=uw-documents \
+                BlobStorage__DocumentContainer=uw-documents-staging \
                 Sanctions__UseMock=true \
                 DevAgent__UseMock=true \
                 B2B__UseSimulatedResponder=true \
                 B2B__HmacSecret=staging-secret \
                 OpenShift__UseMock=true \
                 ASPNETCORE_ENVIRONMENT=Production
-            # Update image in a separate call
             az containerapp update \
               --name "$APP_NAME" \
               --resource-group "$RESOURCE_GROUP" \
