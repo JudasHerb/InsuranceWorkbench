@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.7" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="*" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="*" />
     <PackageReference Include="Microsoft.Identity.Web" Version="*" />
